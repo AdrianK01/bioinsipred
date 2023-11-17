@@ -20,18 +20,38 @@ import numpy as np
 def transition_func(grid, neighbourstates, neighbourcounts, fuel_grid, flammability_grid, chance_grid):
     # unpack state counts for state 0 and state 1, 2
     burnt_neighbours, chaparral_neighbours, burning_neighbours, forest_neighbours, lake_neighbours, scrubland_neighbours = neighbourcounts
-    # create boolean arrays for the birth & survival rules
+    NW, N, NE, W, E, SW, S, SE = neighbourstates
+    # wind power multiplcator, base is 1
+    NW_power= 1.04
+    N_power= 1.1
+    NE_power= 1.04
+    W_power=1
+    E_power=1
+    SW_power=1
+    S_power=0.9
+    SE_power=1
     # 0 - Burnt, 1 - Chaparral(Grass), 2 - Burning, 3 - Dense Forest, 4 - Lake, 5 - Scrubland
+
+    #calculate the multiplayer of catching the fire from neighbours
+    wind_probability_grid = np.zeros(grid.shape)
+    wind_probability_grid[NW==2] += NW_power
+    wind_probability_grid[N==2] += N_power
+    wind_probability_grid[NE==2] += NE_power
+    wind_probability_grid[W==2] += W_power
+    wind_probability_grid[E==2] += E_power
+    wind_probability_grid[SW==2] += SW_power
+    wind_probability_grid[S==2] += S_power
+    wind_probability_grid[SE==2] += SE_power
+    print("Probability Grid")
+    print(wind_probability_grid)
 
     #generate new set of chances of field to burn
     chance_grid[:] = np.random.randint(0,101, size=chance_grid.shape)
     print("Chance Grid")
     print(chance_grid)
-    # if 2 or more burning neighbours and is not burning there is a chance of catching a fire and then if flammability score is lower than chance of catching on fire it will burn ; water doesn't burn 
-    burning = (burning_neighbours >= 1) & (grid != 0) & (fuel_grid>0)  & (grid !=4) & (grid !=2) & (flammability_grid<=chance_grid)
-    not_burning_near_fire_chaparral = (flammability_grid>chance_grid) & (grid==2) & (burning_neighbours >= 1)
-    not_burning_near_fire_forest = (flammability_grid>chance_grid) & (grid==3) & (burning_neighbours >= 1)
-    not_burning_near_fire_scrubland = (flammability_grid>chance_grid) & (grid==5) & (burning_neighbours >= 1)
+    # if 2 or more burning neighbours and is not burning there is a chance of catching a fire and then if flammability score is lower than chance of catching on fire it will burn ; water doesn't burn
+    chance_to_catch_on_fire = (burning_neighbours>=1) & (grid!=0) & (grid!=4)
+    burning = chance_to_catch_on_fire & (fuel_grid>0) & (flammability_grid<=chance_grid*wind_probability_grid)
     #if burning then burn out after fuel runs outs
     already_burning = (grid==2)
     fuel_grid[already_burning] -=1
@@ -52,9 +72,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, fuel_grid, flammabil
     grid[not_burning_forest]=3
     grid[not_burning_scrubland]=5
     grid[lake]=4
-    grid[not_burning_near_fire_chaparral]=1
-    grid[not_burning_near_fire_forest]=3
-    grid[not_burning_near_fire_scrubland]=5
     # Set new cells on fire, then burn out already existing cells
     grid[burning] = 2
     grid[still_burning]=2
@@ -77,7 +94,7 @@ def setup(args):
     # ---- Override the defaults below (these may be changed at anytime) ----
     config.state_colors = [(0,0,0),(0.75,0.75,0), (1,0,0), (0.3, 0.4, 0.15), (0, 0.7, 0.95), (1, 1, 0.05)]
     # config.num_generations = 150
-    # config.grid_dims = (200,200)
+    config.grid_dims = (10,10)
 
     # ----------------------------------------------------------------------
 
@@ -125,12 +142,12 @@ def main():
     flammability_grid[lake] = lake_flammability_value
     flammability_grid[scrubland] = scrubland_flammability_value
     # Create grid object
-    print ("Fuel Grid")
-    print (fuel_grid)
-    print ("Flammability_grid")
-    print (flammability_grid)
-    print ("Chance grid")
-    print (chance_grid)
+    #print ("Fuel Grid")
+    #print (fuel_grid)
+    #print ("Flammability_grid")
+    #print (flammability_grid)
+    #print ("Chance grid")
+    #print (chance_grid)
     grid = Grid2D(config, (transition_func, fuel_grid, flammability_grid, chance_grid))
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
