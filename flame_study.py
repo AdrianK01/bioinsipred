@@ -4,6 +4,7 @@
 # --- Set up executable path, do not edit ---
 import sys
 import inspect
+import math
 this_file_loc = (inspect.stack()[0][1])
 main_dir_loc = this_file_loc[:this_file_loc.index('ca_descriptions')]
 sys.path.append(main_dir_loc)
@@ -21,37 +22,47 @@ def transition_func(grid, neighbourstates, neighbourcounts, fuel_grid, flammabil
     # unpack state counts for state 0 and state 1, 2
     burnt_neighbours, chaparral_neighbours, burning_neighbours, forest_neighbours, lake_neighbours, scrubland_neighbours = neighbourcounts
     NW, N, NE, W, E, SW, S, SE = neighbourstates
-    # wind power multiplcator, base is 1
-    NW_power= 1.04
-    N_power= 1.1
-    NE_power= 1.04
-    W_power=1
-    E_power=1
-    SW_power=1
-    S_power=0.9
-    SE_power=1
+    #constants
+    c1=0.045 #
+    c2=0.131
+    ph=0.58
+    V=8 #Wind speed
+    #Angle from the cells
+    N_angle=2*np.pi
+    NW_angle=np.pi/4
+    W_angle=np.pi/2
+    SW_angle=3*np.pi/4
+    S_angle=np.pi
+    SE_angle=5*np.pi/4
+    E_angle=3*np.pi/2
+    NE_angle=7*np.pi/4
     # 0 - Burnt, 1 - Chaparral(Grass), 2 - Burning, 3 - Dense Forest, 4 - Lake, 5 - Scrubland
 
-    #calculate the multiplayer of catching the fire from neighbours
-    wind_probability_grid = np.zeros(grid.shape)
-    wind_probability_grid[NW==2] += NW_power
-    wind_probability_grid[N==2] += N_power
-    wind_probability_grid[NE==2] += NE_power
-    wind_probability_grid[W==2] += W_power
-    wind_probability_grid[E==2] += E_power
-    wind_probability_grid[SW==2] += SW_power
-    wind_probability_grid[S==2] += S_power
-    wind_probability_grid[SE==2] += SE_power
-    print("Probability Grid")
-    print(wind_probability_grid)
+    #Get the wind probability from the most potent neighbour
+    wind_grid = np.zeros(grid.shape)
+    wind_grid[S==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(S_angle)-1)))
+    wind_grid[SE==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(SE_angle)-1)))
+    wind_grid[SW==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(SW_angle)-1)))
+    wind_grid[W==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(W_angle)-1)))
+    wind_grid[E==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(E_angle)-1)))
+    wind_grid[NW==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(NW_angle)-1)))
+    wind_grid[NE==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(NE_angle)-1)))
+    wind_grid[N==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(N_angle)-1)))
+    print("Wind Probability Grid")
+    print(wind_grid)
 
     #generate new set of chances of field to burn
     chance_grid[:] = np.random.randint(0,101, size=chance_grid.shape)
     print("Chance Grid")
     print(chance_grid)
+    #Calculate of chance of each cell catching on fire
+    probability_grid=np.zeros(grid.shape)
+    probability_grid =(ph*(1+flammability_grid)*wind_grid)
+    print("Probability Grid")
+    print(probability_grid)
     # if 2 or more burning neighbours and is not burning there is a chance of catching a fire and then if flammability score is lower than chance of catching on fire it will burn ; water doesn't burn
     chance_to_catch_on_fire = (burning_neighbours>=1) & (grid!=0) & (grid!=4)
-    burning = chance_to_catch_on_fire & (fuel_grid>0) & (flammability_grid<=chance_grid*wind_probability_grid)
+    burning = chance_to_catch_on_fire & (fuel_grid>0) & (chance_grid/100<=probability_grid)
     #if burning then burn out after fuel runs outs
     already_burning = (grid==2)
     fuel_grid[already_burning] -=1
@@ -112,17 +123,18 @@ def main():
     flammability_grid = np.zeros(config.grid_dims)
     chance_grid = np.zeros(config.grid_dims)
     chance_grid[:] = np.random.randint(0,101, size=chance_grid.shape)
-    #Flammability values (the higher it is the less likely the terrain is to catch on fire, from 0-100) for terrain types
-    chaparral_flammability_value = 20
+    #Flammability values
+    chaparral_flammability_value = 0.4
     scrubland_flammability_value = 0
-    forest_flammability_value = 50
-    lake_flammability_value = 200 #You don't want to set lake on fire do you?
+    forest_flammability_value = -0.3
+    lake_flammability_value = -200
     #Fuel values (how many cycle will they burn for) for terrain types
-    chaparral_fuel_value = 2
-    scrubland_fuel_value = 1
-    forest_fuel_value = 5
+    #One tick is considered to be around ~2h
+    chaparral_fuel_value = 3*(24/2) #To burn ~3days
+    scrubland_fuel_value = 3 #To burn 6h
+    forest_fuel_value = 24*(24/2) #To burn 24 days
     lake_fuel_value = 0
-    initial_fire_fuel_value=10
+    initial_fire_fuel_value=7*(24/2) #To burn 1 week
     #Access the inital grid and set up values based on the terrain type
     initial_grid=config.initial_grid
     chaparral = (initial_grid==1)
