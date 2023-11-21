@@ -20,7 +20,7 @@ import numpy as np
 
 def transition_func(grid, neighbourstates, neighbourcounts, fuel_grid, flammability_grid, chance_grid):
     # unpack state counts for state 0 and state 1, 2
-    burnt_neighbours, chaparral_neighbours, burning_neighbours, forest_neighbours, lake_neighbours, scrubland_neighbours = neighbourcounts
+    burnt_neighbours, chaparral_neighbours, burning_neighbours, forest_neighbours, lake_neighbours, scrubland_neighbours, city_neighbours = neighbourcounts
     NW, N, NE, W, E, SW, S, SE = neighbourstates
     #constants
     c1=0.045 #
@@ -76,6 +76,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, fuel_grid, flammabil
     not_burning_forest = (grid==3)
     not_burning_scrubland = (grid==5)
     lake = (grid==4)
+    city = (grid==6)
     # Set all cells to 0 (burnt)
     grid[:, :] = 0
     #Terrain unaffected by fire remains the same
@@ -83,6 +84,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, fuel_grid, flammabil
     grid[not_burning_forest]=3
     grid[not_burning_scrubland]=5
     grid[lake]=4
+    grid[city]=6
     # Set new cells on fire, then burn out already existing cells
     grid[burning] = 2
     grid[still_burning]=2
@@ -98,12 +100,12 @@ def setup(args):
     # ---THE CA MUST BE RELOADED IN THE GUI IF ANY OF THE BELOW ARE CHANGED---
     config.title = "Flame study project"
     config.dimensions = 2
-    # 0 - Burnt, 1 - Chaparral(Grass), 2 - Burning, 3 - Dense Forest, 4 - Lake, 5 - Scrubland
-    config.states = (0, 1, 2, 3, 4, 5)
+    # 0 - Burnt, 1 - Chaparral(Grass), 2 - Burning, 3 - Dense Forest, 4 - Lake, 5 - Scrubland, 6 - City
+    config.states = (0, 1, 2, 3, 4, 5, 6)
     # ------------------------------------------------------------------------
 
     # ---- Override the defaults below (these may be changed at anytime) ----
-    config.state_colors = [(0,0,0),(0.75,0.75,0), (1,0,0), (0.3, 0.4, 0.15), (0, 0.7, 0.95), (1, 1, 0.05)]
+    config.state_colors = [(0,0,0),(0.75,0.75,0), (1,0,0), (0.3, 0.4, 0.15), (0, 0.7, 0.95), (1, 1, 0.05), (0.5, 0, 0.5)]
     # config.num_generations = 150
     config.grid_dims = (10,10)
 
@@ -126,6 +128,7 @@ def main():
     #Flammability values
     chaparral_flammability_value = 0.4
     scrubland_flammability_value = 0
+    city_flammability_value = -0.5
     forest_flammability_value = -0.3
     lake_flammability_value = -200
     #Fuel values (how many cycle will they burn for) for terrain types
@@ -133,6 +136,7 @@ def main():
     chaparral_fuel_value = 3*(24/2) #To burn ~3days
     scrubland_fuel_value = 3 #To burn 6h
     forest_fuel_value = 24*(24/2) #To burn 24 days
+    city_fuel_value = 14*(24/2) #To burn 14 days
     lake_fuel_value = 0
     initial_fire_fuel_value=7*(24/2) #To burn 1 week
     #Access the inital grid and set up values based on the terrain type
@@ -142,17 +146,20 @@ def main():
     lake = (initial_grid==4)
     scrubland = (initial_grid==5)
     fire = (initial_grid==2)
+    city = (initial_grid==6)
     #Edit fueld grid to include values for specif terrains
     fuel_grid[chaparral] = chaparral_fuel_value
     fuel_grid[forest] = forest_fuel_value
     fuel_grid[lake] = lake_fuel_value
     fuel_grid[scrubland] = scrubland_fuel_value
     fuel_grid[fire]= initial_fire_fuel_value
+    fuel_grid[city]=city_fuel_value
     #Edit flammability grid to include values for specif terrains
     flammability_grid[chaparral] = chaparral_flammability_value
     flammability_grid[forest] = forest_flammability_value
     flammability_grid[lake] = lake_flammability_value
     flammability_grid[scrubland] = scrubland_flammability_value
+    flammability_grid[city] = city_flammability_value
     # Create grid object
     #print ("Fuel Grid")
     #print (fuel_grid)
