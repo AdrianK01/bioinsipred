@@ -107,7 +107,7 @@ def setup(args):
     # ---- Override the defaults below (these may be changed at anytime) ----
     config.state_colors = [(0,0,0),(0.75,0.75,0), (1,0,0), (0.3, 0.4, 0.15), (0, 0.7, 0.95), (1, 1, 0.05), (0.5, 0, 0.5)]
     # config.num_generations = 150
-    config.grid_dims = (10,10)
+    config.grid_dims = (100,100)
 
     # ----------------------------------------------------------------------
 
@@ -121,6 +121,17 @@ def setup(args):
 def main():
     # Open the config object
     config = setup(sys.argv[1:])
+    use_map=True
+    starter_powerplant=False
+    if (use_map==True):
+        #load map file
+        file_path="map.csv"
+        data = np.genfromtxt(file_path, delimiter=',')
+        if (starter_powerplant==True):
+            data[0,20]=2
+        else:
+            data[0,99]=2
+        config.initial_grid=data
     fuel_grid = np.zeros(config.grid_dims)
     flammability_grid = np.zeros(config.grid_dims)
     chance_grid = np.zeros(config.grid_dims)
