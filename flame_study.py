@@ -18,16 +18,22 @@ import capyle.utils as utils
 import numpy as np
 
 
-def transition_func(grid, neighbourstates, neighbourcounts, fuel_grid, flammability_grid, chance_grid):
+def transition_func(grid, neighbourstates, neighbourcounts, fuel_grid, flammability_grid, chance_grid, timer, intervention_time):
     # unpack state counts for state 0 and state 1, 2
     burnt_neighbours, chaparral_neighbours, burning_neighbours, forest_neighbours, lake_neighbours, scrubland_neighbours, city_neighbours = neighbourcounts
     NW, N, NE, W, E, SW, S, SE = neighbourstates
+    #Intervention pre-set
+    timer[0]=timer[0]+1
+    print(timer)
+    #list of coordinates that will be affected by the intervention, in current preset you can drop up to 50 coordinates, as each cell is 0,5x0,5km
+    #Intervention for powerplant
+    intervention_grid=[[40, 0], [40, 1], [40, 2], [40, 3], [40, 4], [40, 5], [40, 6], [40, 7], [40, 8], [40, 9], [40, 10], [40, 11], [40, 12], [40, 13], [40, 14], [40, 15], [40, 16], [40, 17], [40, 18], [40, 19], [40, 20], [40, 21], [40, 22], [40, 23], [40, 24], [40, 25], [40, 26], [40, 27], [40, 28], [40, 29], [40, 30], [0, 40], [1, 40], [2, 40], [3, 40], [4, 40], [5, 40], [6, 40], [7, 40], [8, 40], [9, 40], [10, 40]]
     #constants
     c1=0.045 #
     c2=0.131
     ph=0.58
-    V=8 #Wind speed
-    #Angle from the cells
+    V=0 #Wind speed
+    #Angles from the cells for norther wind
     N_angle=2*np.pi
     NW_angle=np.pi/4
     W_angle=np.pi/2
@@ -36,6 +42,18 @@ def transition_func(grid, neighbourstates, neighbourcounts, fuel_grid, flammabil
     SE_angle=5*np.pi/4
     E_angle=3*np.pi/2
     NE_angle=7*np.pi/4
+
+    #In order to get angels for other values simply shift the value circle so that the angle of 2*pi is from the wind direction
+    #Angles from the cells for norther-eastern wind
+    #N_angle=np.pi/4
+    #NW_angle=np.pi/2
+    #W_angle=3*np.pi/4
+    #SW_angle=np.pi
+    #S_angle=5*np.pi/4
+    #SE_angle=3*np.pi/2
+    #E_angle=7*np.pi/4
+    #NE_angle=2*np.pi
+
     # 0 - Burnt, 1 - Chaparral(Grass), 2 - Burning, 3 - Dense Forest, 4 - Lake, 5 - Scrubland
 
     #Get the wind probability from the most potent neighbour
@@ -48,18 +66,29 @@ def transition_func(grid, neighbourstates, neighbourcounts, fuel_grid, flammabil
     wind_grid[NW==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(NW_angle)-1)))
     wind_grid[NE==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(NE_angle)-1)))
     wind_grid[N==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(N_angle)-1)))
-    print("Wind Probability Grid")
-    print(wind_grid)
+
+    #In order to get most potent values for other wins simply shift the value circle so that the lowest line is from the wind direction and highest from opposite direction
+    #Most potent neighbour for NE wind
+    #wind_grid[SW==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(SW_angle)-1)))
+    #wind_grid[W==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(W_angle)-1)))
+    #wind_grid[S==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(S_angle)-1)))
+    #wind_grid[SE==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(SE_angle)-1)))
+    #wind_grid[NW==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(NW_angle)-1)))
+    #wind_grid[E==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(E_angle)-1)))
+    #wind_grid[N==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(N_angle)-1)))
+    #wind_grid[NE==2] = math.exp(c1*V)*(math.exp(V*c2*(math.cos(NE_angle)-1)))
+    #print("Wind Probability Grid")
+    #print(wind_grid)
 
     #generate new set of chances of field to burn
     chance_grid[:] = np.random.randint(0,101, size=chance_grid.shape)
-    print("Chance Grid")
-    print(chance_grid)
+    #print("Chance Grid")
+    #print(chance_grid)
     #Calculate of chance of each cell catching on fire
     probability_grid=np.zeros(grid.shape)
     probability_grid =(ph*(1+flammability_grid)*wind_grid)
-    print("Probability Grid")
-    print(probability_grid)
+    #print("Probability Grid")
+    #print(probability_grid)
     # if 2 or more burning neighbours and is not burning there is a chance of catching a fire and then if flammability score is lower than chance of catching on fire it will burn ; water doesn't burn
     chance_to_catch_on_fire = (burning_neighbours>=1) & (grid!=0) & (grid!=4)
     burning = chance_to_catch_on_fire & (fuel_grid>0) & (chance_grid/100<=probability_grid)
@@ -91,6 +120,11 @@ def transition_func(grid, neighbourstates, neighbourcounts, fuel_grid, flammabil
     #Burn out terrain that is on fire and run out of fuel
     grid[ran_out_of_fuel] = 0
     grid[burnt]=0
+    if timer[0]== intervention_time:
+        for cell in intervention_grid:
+            current_row=cell[0]
+            current_collumn=cell[1]
+            grid[current_row, current_collumn]=4
     return grid
 
 
@@ -122,7 +156,10 @@ def main():
     # Open the config object
     config = setup(sys.argv[1:])
     use_map=True
-    starter_powerplant=False
+    starter_powerplant=True
+    timer=np.array([0])
+    intervention_time_powerplant=19
+    intervention_time=intervention_time_powerplant
     if (use_map==True):
         #load map file
         file_path="map.csv"
@@ -178,7 +215,7 @@ def main():
     #print (flammability_grid)
     #print ("Chance grid")
     #print (chance_grid)
-    grid = Grid2D(config, (transition_func, fuel_grid, flammability_grid, chance_grid))
+    grid = Grid2D(config, (transition_func, fuel_grid, flammability_grid, chance_grid, timer, intervention_time))
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
 
